@@ -2,12 +2,27 @@ package gintest
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 
 	"github.com/gin-gonic/gin"
 )
+
+type nopReadCloser struct {
+	reader io.Reader
+}
+
+func newNopReadCloser(reader io.Reader) io.ReadCloser {
+	return &nopReadCloser{reader}
+}
+func (rc *nopReadCloser) Read(data []byte) (int, error) {
+	return rc.reader.Read(data)
+}
+func (rc *nopReadCloser) Close() error {
+	return nil
+}
 
 /* ############################################## */
 /* ###               Gin Contexts             ### */
@@ -26,6 +41,14 @@ func PrepareEmptyRecordingContext() (*gin.Context, *httptest.ResponseRecorder) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = &http.Request{ContentLength: 0, Header: make(map[string][]string)}
 	return c, recorder
+}
+
+func SetContextBody(c *gin.Context, data string) {
+
+	rawData := []byte(data)
+	c.Request.ContentLength = int64(len(data))
+	c.Request.Body = newNopReadCloser(bytes.NewReader(rawData))
+	return
 }
 
 func makeURL(path string) *url.URL {
